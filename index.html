@@ -8,9 +8,9 @@
     body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
     h1 { color: #b8860b; text-align: center; }
     .dashboard { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
-    .card { background: white; border-radius: 8px; padding: 20px; width: 320px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    .card h2 { margin: 0; font-size: 18px; }
-    .card p { font-size: 16px; }
+    .card { background: white; border-radius: 8px; padding: 20px; width: 380px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .card h2 { margin: 0; font-size: 20px; }
+    .card p { font-size: 15px; margin: 4px 0; }
     .low { color: red; }
     .medium { color: orange; }
     .high { color: green; }
@@ -18,6 +18,9 @@
     button:hover { background: #daa520; }
     form { margin-top: 20px; }
     input, select { padding: 8px; margin: 5px 0; width: 100%; }
+    table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #eee; }
   </style>
 </head>
 <body>
@@ -82,91 +85,83 @@
     <button type="submit">Log Sale</button>
   </form>
 
+  <!-- Export -->
+  <button id="exportBtn">📑 Export Report (CSV)</button>
+
+  <!-- Sales Log Table -->
+  <h2>Sales Log</h2>
+  <table id="salesTable">
+    <thead>
+      <tr>
+        <th>Product</th><th>Unit</th><th>Qty</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Date</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
   <script>
-    // Prices
-    const prices = {
-      cartons: {
-        Mini: { cost: 96000, sell: 168000 },
-        Midi: { cost: 49000, sell: 72000 },
-        Maxi: { cost: 60000, sell: 80000 },
-        Classic: { cost: 60000, sell: 94000 }
-      },
-      packs: {
-        "Mini-80": { cost: 80*400, sell: 47500 },
-        "Mini-40": { cost: 40*400, sell: 24000 },
-        "Mini-25": { cost: 25*400, sell: 15000 },
-        "Mini-20": { cost: 20*400, sell: 12000 },
-        "Midi-35": { cost: 35*700, sell: 52000 },
-        "Midi-8": { cost: 8*700, sell: 12000 },
-        "Midi-6": { cost: 6*700, sell: 9000 },
-        "Maxi-30": { cost: 30*1000, sell: 53000 },
-        "Maxi-6": { cost: 6*1000, sell: 10600 },
-        "Classic-30": { cost: 30*1000, sell: 65000 },
-        "Classic-6": { cost: 6*1000, sell: 13000 }
-      }
+    const cartonSizes = { Mini:80, Midi:35, Maxi:30, Classic:30 };
+    const cartonPrices = {
+      Mini:{cost:96000,sell:168000},
+      Midi:{cost:49000,sell:72000},
+      Maxi:{cost:60000,sell:80000},
+      Classic:{cost:60000,sell:94000}
+    };
+    const packSelling = {
+      "Mini-80":47500,"Mini-40":24000,"Mini-25":15000,"Mini-20":12000,
+      "Midi-35":52000,"Midi-8":12000,"Midi-6":9000,
+      "Maxi-30":53000,"Maxi-6":10600,
+      "Classic-30":65000,"Classic-6":13000
     };
 
-    // Inventory
     let inventory = {
-      cartons: { Mini: 0, Midi: 0, Maxi: 0, Classic: 0 },
-      packs: {
-        "Mini-80": 0, "Mini-40": 0, "Mini-25": 0, "Mini-20": 2,
-        "Midi-35": 0, "Midi-8": 0, "Midi-6": 6,
-        "Maxi-30": 0, "Maxi-6": 0,
-        "Classic-30": 0, "Classic-6": 0
+      cartons:{Mini:0,Midi:0,Maxi:0,Classic:0},
+      packs:{
+        "Mini-80":0,"Mini-40":0,"Mini-25":0,"Mini-20":2,
+        "Midi-35":0,"Midi-8":0,"Midi-6":6,
+        "Maxi-30":0,"Maxi-6":0,
+        "Classic-30":0,"Classic-6":0
       }
     };
 
-    let totalProfit = 0;
+    let salesLog = [];
+    let totalProfit=0;
 
-    function renderDashboard() {
-      const dash = document.getElementById('dashboard');
-      dash.innerHTML = '';
-      // Cartons
-      for (let item in inventory.cartons) {
-        let qty = inventory.cartons[item];
-        let level = qty < 3 ? 'low' : qty < 10 ? 'medium' : 'high';
-        dash.innerHTML += `
-          <div class="card">
-            <h2>${item} Cartons</h2>
-            <p class="${level}">Quantity: ${qty}</p>
-          </div>`;
-      }
-      // Packs
-      for (let item in inventory.packs) {
-        let qty = inventory.packs[item];
-        dash.innerHTML += `
-          <div class="card">
-            <h2>${item.replace('-', ' ')}</h2>
-            <p>Quantity: ${qty}</p>
-          </div>`;
-      }
-      // Profit
-      dash.innerHTML += `
-        <div class="card">
-          <h2>Total Profit</h2>
-          <p>₦${totalProfit.toLocaleString()}</p>
-        </div>`;
+    function calcPackCost(product){
+      let [type,size]=product.split("-");
+      let unitCost=cartonPrices[type].cost/cartonSizes[type];
+      return unitCost*parseInt(size);
     }
 
-    // Add Cartons
-    document.getElementById('addCartonForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      let product = document.getElementById('cartonProduct').value;
-      let qty = parseInt(document.getElementById('cartonQty').value);
-      inventory.cartons[product] += qty;
-      renderDashboard();
-      this.reset();
-    });
+    function renderDashboard(){
+      const dash=document.getElementById('dashboard');
+      dash.innerHTML='';
+      let totalInventoryCost=0;
 
-    // Add Packs
-    document.getElementById('addPackForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      let product = document.getElementById('packProduct').value;
-      let qty = parseInt(document.getElementById('packQty').value);
-      inventory.packs[product] += qty;
-      renderDashboard();
-      this.reset();
-    });
+      ["Mini","Midi","Maxi","Classic"].forEach(type=>{
+        let html=`<div class="card"><h2>${type} Croissant</h2>`;
+        let cQty=inventory.cartons[type];
+        let cLevel=cQty<3?'low':cQty<10?'medium':'high';
+        let cartonCost=cartonPrices[type].cost*cQty;
+        totalInventoryCost+=cartonCost;
+        html+=`<p class="${cLevel}">Cartons: ${cQty} (Value ₦${cartonCost.toLocaleString()})</p>`;
 
-    // Log Sale
+        for(let key in inventory.packs){
+          if(key.startsWith(type)){
+            let qty=inventory.packs[key];
+            let cost=calcPackCost(key)*qty;
+            totalInventoryCost+=cost;
+            let sell=packSelling[key];
+            let margin=((sell-calcPackCost(key))/sell*100).toFixed(1);
+            html+=`<p>${key.replace('-', ' ')}: ${qty} (Margin ${margin}%)</p>`;
+          }
+        }
+
+        let productProfit=salesLog.filter(s=>s.product.startsWith(type))
+          .reduce((sum,s)=>sum+s.profit,0);
+        html+=`<p><b>Cumulative Profit: ₦${productProfit.toLocaleString()}</b></p></div>`;
+        dash.innerHTML+=html;
+      });
+
+      dash.innerHTML+=`<div class="card"><h2>Total Inventory Cost</h2><p>₦${totalInventoryCost.toLocaleString()}</p></div>`;
+      dash.innerHTML+=`<div class="card"><h2>Total Profit</h2><p>₦${total
