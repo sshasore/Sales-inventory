@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frosterie Inventory Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
+    h1 { color: #b8860b; text-align: center; }
+    .dashboard { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+    .card { background: white; border-radius: 8px; padding: 20px; width: 280px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .card h2 { margin: 0; font-size: 18px; }
+    .card p { font-size: 16px; }
+    .low { color: red; }
+    .medium { color: orange; }
+    .high { color: green; }
+    button { background: #b8860b; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #daa520; }
+    form { margin-top: 20px; }
+    input, select { padding: 8px; margin: 5px 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>🥐 Frosterie Inventory Tracker</h1>
+
+  <div class="dashboard" id="dashboard"></div>
+
+  <!-- Add Cartons -->
+  <form id="addForm">
+    <h2>Add Cartons</h2>
+    <select id="product">
+      <option value="Classic Croissant">Classic Croissant (80g)</option>
+      <option value="Maxi Croissant">Maxi Croissant (70g)</option>
+      <option value="Midi Croissant">Midi Croissant (60g)</option>
+      <option value="Mini Croissant">Mini Croissant (30g)</option>
+    </select>
+    <input type="number" id="quantity" placeholder="Cartons" required>
+    <button type="submit">Add to Inventory</button>
+  </form>
+
+  <!-- Convert Cartons to Packs -->
+  <form id="convertForm">
+    <h2>Convert Cartons to Packs</h2>
+    <select id="convertProduct">
+      <option value="Classic Croissant">Classic Croissant (80g)</option>
+      <option value="Maxi Croissant">Maxi Croissant (70g)</option>
+      <option value="Midi Croissant">Midi Croissant (60g)</option>
+      <option value="Mini Croissant">Mini Croissant (30g)</option>
+    </select>
+    <input type="number" id="convertQuantity" placeholder="Cartons to Convert" required>
+    <button type="submit">Convert</button>
+  </form>
+
+  <!-- Sales Logging -->
+  <form id="salesForm">
+    <h2>Log Sale</h2>
+    <select id="saleProduct">
+      <option value="Classic Croissant">Classic Croissant (80g)</option>
+      <option value="Maxi Croissant">Maxi Croissant (70g)</option>
+      <option value="Midi Croissant">Midi Croissant (60g)</option>
+      <option value="Mini Croissant">Mini Croissant (30g)</option>
+    </select>
+    <select id="saleUnit">
+      <option value="cartons">Cartons</option>
+      <option value="packs">Packs</option>
+    </select>
+    <input type="number" id="saleQuantity" placeholder="Quantity Sold" required>
+    <button type="submit">Deduct from Inventory</button>
+  </form>
+
+  <!-- Export Weekly Report -->
+  <button id="exportBtn">📑 Export Weekly Report (CSV)</button>
+
+  <script>
+    const conversionRates = {
+      "Classic Croissant": { cartonSize: 30, packSize: 6 },
+      "Maxi Croissant": { cartonSize: 30, packSize: 6 },
+      "Midi Croissant": { cartonSize: 35, packSize: 7 },
+      "Mini Croissant": { cartonSize: 80, packSize: 20 }
+    };
+
+    let inventory = {
+      "Classic Croissant": { cartons: 29, packs: 0 },
+      "Maxi Croissant": { cartons: 8, packs: 0 },
+      "Midi Croissant": { cartons: 8, packs: 0 },
+      "Mini Croissant": { cartons: 11, packs: 0 }
+    };
+
+    let salesLog = []; // track sales for reporting
+
+    function renderDashboard() {
+      const dash = document.getElementById('dashboard');
+      dash.innerHTML = '';
+      for (let item in inventory) {
+        let cartons = inventory[item].cartons;
+        let packs = inventory[item].packs;
+        let level = cartons < 3 ? 'low' : cartons < 10 ? 'medium' : 'high';
+        dash.innerHTML += `
+          <div class="card">
+            <h2>${item}</h2>
+            <p class="${level}">Cartons: ${cartons}</p>
+            <p>Packs: ${packs}</p>
+          </div>`;
+      }
+    }
+
+    document.getElementById('addForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      let product = document.getElementById('product').value;
+      let qty = parseInt(document.getElementById('quantity').value);
+      inventory[product].cartons += qty;
+      renderDashboard();
+      this.reset();
+    });
+
+    document.getElementById('convertForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      let product = document.getElementById('convertProduct').value;
+      let qty = parseInt(document.getElementById('convertQuantity').value);
+      if (inventory[product].cartons >= qty) {
+        inventory[product].cartons -= qty;
+        let rate = conversionRates[product];
+        let packsAdded = (rate.cartonSize / rate.packSize) * qty;
+        inventory[product].packs += packsAdded;
+        alert(`${qty} carton(s) of ${product} converted into ${packsAdded} packs.`);
+      } else {
+        alert(`Not enough cartons of ${product} to convert.`);
+      }
+      renderDashboard();
+      this.reset();
+    });
+
+    document.getElementById('salesForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      let product = document.getElementById('saleProduct').value;
+      let unit = document.getElementById('saleUnit').value;
+      let qty = parseInt(document.getElementById('saleQuantity').value);
+      if (inventory[product][unit] >= qty) {
+        inventory[product][unit] -= qty;
+        salesLog.push({ product, unit, qty, date: new Date().toLocaleString() });
+        alert(`${qty} ${unit} of ${product} sold. Inventory updated.`);
+      } else {
+        alert(`Not enough ${unit} of ${product} to complete sale.`);
+      }
+      renderDashboard();
+      this.reset();
+    });
+
+    // Export CSV
+    document.getElementById('exportBtn').addEventListener('click', function() {
+      let csv = "Product,Cartons,Packs\n";
+      for (let item in inventory) {
+        csv += `${item},${inventory[item].cartons},${inventory[item].packs}\n`;
+      }
+      csv += "\nSales Log:\nProduct,Unit,Quantity,Date\n";
+      salesLog.forEach(s => {
+        csv += `${s.product},${s.unit},${s.qty},${s.date}\n`;
+      });
+
+      let blob = new Blob([csv], { type: "text/csv" });
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement("a");
+      a.href = url;
+      a.download = "frosterie_weekly_report.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    renderDashboard();
+  </script>
+</body>
+</html>
