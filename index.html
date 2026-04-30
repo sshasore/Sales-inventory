@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frosterie Inventory Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
+    h1 { color: #b8860b; text-align: center; }
+    .dashboard { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+    .card { background: white; border-radius: 8px; padding: 20px; width: 320px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .card h2 { margin: 0; font-size: 18px; }
+    .card p { font-size: 16px; }
+    .low { color: red; }
+    .medium { color: orange; }
+    .high { color: green; }
+    button { background: #b8860b; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #daa520; }
+    form { margin-top: 20px; }
+    input, select { padding: 8px; margin: 5px 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>🥐 Frosterie Inventory Tracker</h1>
+
+  <div class="dashboard" id="dashboard"></div>
+
+  <!-- Add Cartons -->
+  <form id="addCartonForm">
+    <h2>Add Cartons</h2>
+    <select id="cartonProduct">
+      <option value="Mini">Mini Croissant</option>
+      <option value="Midi">Midi Croissant</option>
+      <option value="Maxi">Maxi Croissant</option>
+      <option value="Classic">Classic Croissant</option>
+    </select>
+    <input type="number" id="cartonQty" placeholder="Cartons" required>
+    <button type="submit">Add Cartons</button>
+  </form>
+
+  <!-- Add Packs -->
+  <form id="addPackForm">
+    <h2>Add Packs</h2>
+    <select id="packProduct">
+      <option value="Mini-20">Mini Pack of 20</option>
+      <option value="Mini-25">Mini Pack of 25</option>
+      <option value="Mini-40">Mini Bag of 40</option>
+      <option value="Mini-80">Mini Bag of 80</option>
+      <option value="Midi-6">Midi Pack of 6</option>
+      <option value="Midi-8">Midi Pack of 8</option>
+      <option value="Midi-35">Midi Bag of 35</option>
+      <option value="Maxi-6">Maxi Pack of 6</option>
+      <option value="Maxi-30">Maxi Bag of 30</option>
+      <option value="Classic-6">Classic Pack of 6</option>
+      <option value="Classic-30">Classic Bag of 30</option>
+    </select>
+    <input type="number" id="packQty" placeholder="Packs" required>
+    <button type="submit">Add Packs</button>
+  </form>
+
+  <!-- Log Sale -->
+  <form id="salesForm">
+    <h2>Log Sale</h2>
+    <select id="saleProduct">
+      <option value="Mini-carton">Mini Carton</option>
+      <option value="Midi-carton">Midi Carton</option>
+      <option value="Maxi-carton">Maxi Carton</option>
+      <option value="Classic-carton">Classic Carton</option>
+      <option value="Mini-20">Mini Pack of 20</option>
+      <option value="Mini-25">Mini Pack of 25</option>
+      <option value="Mini-40">Mini Bag of 40</option>
+      <option value="Mini-80">Mini Bag of 80</option>
+      <option value="Midi-6">Midi Pack of 6</option>
+      <option value="Midi-8">Midi Pack of 8</option>
+      <option value="Midi-35">Midi Bag of 35</option>
+      <option value="Maxi-6">Maxi Pack of 6</option>
+      <option value="Maxi-30">Maxi Bag of 30</option>
+      <option value="Classic-6">Classic Pack of 6</option>
+      <option value="Classic-30">Classic Bag of 30</option>
+    </select>
+    <input type="number" id="saleQty" placeholder="Quantity Sold" required>
+    <button type="submit">Log Sale</button>
+  </form>
+
+  <script>
+    // Prices
+    const prices = {
+      cartons: {
+        Mini: { cost: 96000, sell: 168000 },
+        Midi: { cost: 49000, sell: 72000 },
+        Maxi: { cost: 60000, sell: 80000 },
+        Classic: { cost: 60000, sell: 94000 }
+      },
+      packs: {
+        "Mini-80": { cost: 80*400, sell: 47500 },
+        "Mini-40": { cost: 40*400, sell: 24000 },
+        "Mini-25": { cost: 25*400, sell: 15000 },
+        "Mini-20": { cost: 20*400, sell: 12000 },
+        "Midi-35": { cost: 35*700, sell: 52000 },
+        "Midi-8": { cost: 8*700, sell: 12000 },
+        "Midi-6": { cost: 6*700, sell: 9000 },
+        "Maxi-30": { cost: 30*1000, sell: 53000 },
+        "Maxi-6": { cost: 6*1000, sell: 10600 },
+        "Classic-30": { cost: 30*1000, sell: 65000 },
+        "Classic-6": { cost: 6*1000, sell: 13000 }
+      }
+    };
+
+    // Inventory
+    let inventory = {
+      cartons: { Mini: 0, Midi: 0, Maxi: 0, Classic: 0 },
+      packs: {
+        "Mini-80": 0, "Mini-40": 0, "Mini-25": 0, "Mini-20": 2,
+        "Midi-35": 0, "Midi-8": 0, "Midi-6": 6,
+        "Maxi-30": 0, "Maxi-6": 0,
+        "Classic-30": 0, "Classic-6": 0
+      }
+    };
+
+    let totalProfit = 0;
+
+    function renderDashboard() {
+      const dash = document.getElementById('dashboard');
+      dash.innerHTML = '';
+      // Cartons
+      for (let item in inventory.cartons) {
+        let qty = inventory.cartons[item];
+        let level = qty < 3 ? 'low' : qty < 10 ? 'medium' : 'high';
+        dash.innerHTML += `
+          <div class="card">
+            <h2>${item} Cartons</h2>
+            <p class="${level}">Quantity: ${qty}</p>
+          </div>`;
+      }
+      // Packs
+      for (let item in inventory.packs) {
+        let qty = inventory.packs[item];
+        dash.innerHTML += `
+          <div class="card">
+            <h2>${item.replace('-', ' ')}</h2>
+            <p>Quantity: ${qty}</p>
+          </div>`;
+      }
+      // Profit
+      dash.innerHTML += `
+        <div class="card">
+          <h2>Total Profit</h2>
+          <p>₦${totalProfit.toLocaleString()}</p>
+        </div>`;
+    }
+
+    // Add Cartons
+    document.getElementById('addCartonForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      let product = document.getElementById('cartonProduct').value;
+      let qty = parseInt(document.getElementById('cartonQty').value);
+      inventory.cartons[product] += qty;
+      renderDashboard();
+      this.reset();
+    });
+
+    // Add Packs
+    document.getElementById('addPackForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      let product = document.getElementById('packProduct').value;
+      let qty = parseInt(document.getElementById('packQty').value);
+      inventory.packs[product] += qty;
+      renderDashboard();
+      this.reset();
+    });
+
+    // Log Sale
